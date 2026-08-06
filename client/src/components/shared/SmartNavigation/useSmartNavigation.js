@@ -117,10 +117,10 @@ export function useSmartNavigation({
     // Uses a retry loop so the scroll works even when the tab has just switched
     // and the DOM hasn't finished rendering the target card yet.
     useEffect(() => {
-        if (!highlightedItemId || items.length === 0) return;
+        if (!highlightedItemId) return;
 
         let attempts = 0;
-        const MAX_ATTEMPTS = 30;  // 30 × 100ms = 3 seconds max wait
+        const MAX_ATTEMPTS = 50;  // 50 × 100ms = 5 seconds max wait
         const INTERVAL_MS  = 100;
         let timer;
 
@@ -137,27 +137,34 @@ export function useSmartNavigation({
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             element.classList.add(`${prefix}-assignment-highlighted`);
 
+            // Auto-remove highlight after 3 seconds (matches 3 × 1s animation)
+            const autoRemoveTimer = setTimeout(() => {
+                element.classList.remove(`${prefix}-assignment-highlighted`);
+                element.removeEventListener('click', clickHandler);
+                if (onClearHighlight) onClearHighlight();
+            }, 3000);
+
             const clickHandler = () => {
+                clearTimeout(autoRemoveTimer);
                 element.classList.remove(`${prefix}-assignment-highlighted`);
                 if (onClearHighlight) onClearHighlight();
                 element.removeEventListener('click', clickHandler);
             };
             element.addEventListener('click', clickHandler);
 
-            // Replace cleanup timer reference so the return below cancels it too
-            // We also store the clickHandler cleanup so it can be removed if the component unmounts
             timer = { 
                 isListener: true, 
                 clear: () => {
+                    clearTimeout(autoRemoveTimer);
                     element.classList.remove(`${prefix}-assignment-highlighted`);
                     element.removeEventListener('click', clickHandler);
                 } 
             };
         };
 
-        // Small initial delay so a simultaneous tab-switch re-render can settle first,
-        // and to ensure the smooth scroll animation is visible to the user rather than jumping.
-        timer = setTimeout(tryHighlight, 400);
+        // Delay start to allow tab-switch re-render + data fetch to settle.
+        // 600ms gives the API fetch enough time to return before the first attempt.
+        timer = setTimeout(tryHighlight, 600);
 
         return () => {
             if (timer && timer.isListener) {

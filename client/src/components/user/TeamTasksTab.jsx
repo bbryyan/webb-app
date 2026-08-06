@@ -449,81 +449,76 @@ const TeamTasksTab = memo(({ user }) => {
    * Opens a file or folder. Uses ?type=attachment for TL-attached files,
    * ?type=file for user-submitted files — matching the pattern in TasksTab-Enhanced.
    */
-  const handleOpenFile = async (filePath, fileId) => {
+  const handleOpenFile = useCallback(async () => {
+    if (!fileToOpen) return;
+
+    const file = { ...fileToOpen };
+    const type = openModalType;
+    setShowOpenFileConfirmation(false);
+    setFileToOpen(null);
+
     setSuccessModal({
       isOpen: true,
       title: 'Success',
-      message: openModalType === 'folder' ? 'Folder opened successfully!' : 'File opened successfully!',
+      message: type === 'folder' ? 'Folder opened successfully!' : 'File opened successfully!',
       type: 'success'
-    })
+    });
 
     try {
-      if (openModalType === 'folder' || openModalType === 'filePath') {
-        if (!window.electron?.openFolderInExplorer) return
-        const pathType = fileToOpen?.isAttachment ? 'attachment' : 'file'
-        const folderParam = openModalType === 'folder' && fileToOpen?.original_name && fileToOpen.original_name !== 'Folder Path' ? `&folderName=${encodeURIComponent(fileToOpen.original_name)}` : ''
-        const data = await apiFetch(`/api/files/${fileId}/path?type=${pathType}${folderParam}`)
+      if (type === 'folder' || type === 'filePath') {
+        if (!window.electron?.openFolderInExplorer) return;
+        const pathType = file.isAttachment ? 'attachment' : 'file';
+        const folderParam = file.folderName && file.folderName !== 'Folder Path' ? `&folderName=${encodeURIComponent(file.folderName)}` : '';
+        const data = await apiFetch(`/api/files/${file.id}/path?type=${pathType}${folderParam}`);
         if (data.success && data.filePath) {
-          await window.electron.openFolderInExplorer(data.filePath)
+          await window.electron.openFolderInExplorer(data.filePath);
         }
-        return
+        return;
       }
 
-      if (!filePath && !fileId) return
-
-      const pathType = fileToOpen?.isAttachment ? 'attachment' : 'file'
-      const pathData = await apiFetch(`/api/files/${fileId}/path?type=${pathType}`)
+      const pathType = file.isAttachment ? 'attachment' : 'file';
+      const pathData = await apiFetch(`/api/files/${file.id}/path?type=${pathType}`);
       if (!pathData.success || !pathData.filePath) {
-        setError(pathData.message || 'Could not resolve file path')
-        return
+        setError(pathData.message || 'Could not resolve file path');
+        return;
       }
 
       if (window.electron?.openFileInApp) {
-        const result = await window.electron.openFileInApp(pathData.filePath)
+        const result = await window.electron.openFileInApp(pathData.filePath);
         if (result.success) {
-          setOpenedFileIds(prev => new Set([...prev, fileId]))
+          setOpenedFileIds(prev => new Set([...prev, file.id]));
+          recordView(file.id, file.isAttachment);
         } else {
-          setError(result.error || 'Failed to open file')
-          setTimeout(() => setError(''), 3000)
+          setError(result.error || 'Failed to open file');
+          setTimeout(() => setError(''), 3000);
         }
       } else {
-        const ext = (pathData.filePath.split('.').pop() || '').toLowerCase()
-        const browserViewable = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'txt', 'html', 'css', 'js', 'json', 'xml', 'mp4', 'mp3']
+        const ext = (pathData.filePath.split('.').pop() || '').toLowerCase();
+        const browserViewable = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'txt', 'html', 'css', 'js', 'json', 'xml', 'mp4', 'mp3'];
         if (browserViewable.includes(ext)) {
-          window.open(`${API_BASE_URL}/api/files/${fileId}/stream`, '_blank', 'noopener,noreferrer')
+          window.open(`${API_BASE_URL}/api/files/${file.id}/stream`, '_blank', 'noopener,noreferrer');
         } else {
           const a = Object.assign(document.createElement('a'), {
-            href: `${API_BASE_URL}/api/files/${fileId}/stream`,
-            download: fileToOpen?.original_name || 'file',
-          })
-          a.click()
+            href: `${API_BASE_URL}/api/files/${file.id}/stream`,
+            download: file.original_name || 'file',
+          });
+          a.click();
         }
-        setOpenedFileIds(prev => new Set([...prev, fileId]))
+        setOpenedFileIds(prev => new Set([...prev, file.id]));
+        recordView(file.id, file.isAttachment);
       }
     } catch {
-      setError('Failed to open file. Please try again.')
-      setTimeout(() => setError(''), 3000)
+      setError('Failed to open file. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
-  }
+  }, [fileToOpen, openModalType]);
 
-  /**
-   * Opens the folder containing a file in Windows Explorer.
-   * isAttachment=true → uses ?type=attachment (TL reference files)
-   * isAttachment=false → uses ?type=file (user submitted files)
-   */
-  const handleOpenFolderPath = async (fileId, isAttachment = false, isFolder = false, originalName = '') => {
-    if (!window.electron?.openFolderInExplorer) return
-    try {
-      const pathType = isAttachment ? 'attachment' : 'file'
-      const folderParam = isFolder && originalName ? `&folderName=${encodeURIComponent(originalName)}` : ''
-      const data = await apiFetch(`/api/files/${fileId}/path?type=${pathType}${folderParam}`)
-      if (data.success && data.filePath) {
-        setFileToOpen({ id: fileId, file_path: data.filePath, original_name: originalName || (isFolder ? 'Folder Path' : 'File Path'), isAttachment })
-        setOpenModalType(isFolder ? 'folder' : 'filePath')
-        setShowOpenFileConfirmation(true)
-      }
-    } catch { /* ignore */ }
-  }
+  const handleOpenFolderPath = useCallback(async (fileId, isAttachment = false, isFolder = false, folderName = 'Folder Path') => {
+    if (!window.electron?.openFolderInExplorer) return;
+    setFileToOpen({ id: fileId, isAttachment, folderName });
+    setOpenModalType(isFolder ? 'folder' : 'filePath');
+    setShowOpenFileConfirmation(true);
+  }, []);
 
   // ── Download helpers ──────────────────────────────────────────────────────
   const handleDownloadFile = async (file) => {
@@ -1434,17 +1429,7 @@ const TeamTasksTab = memo(({ user }) => {
           setShowOpenFileConfirmation(false)
           setFileToOpen(null)
         }}
-        onConfirm={async () => {
-          if (!fileToOpen) return
-          const fileId = fileToOpen.id
-          try {
-            await handleOpenFile(fileToOpen.file_path, fileId)
-            if (openModalType === 'file') recordView(fileId, fileToOpen.isAttachment)
-          } finally {
-            setShowOpenFileConfirmation(false)
-            setFileToOpen(null)
-          }
-        }}
+        onConfirm={handleOpenFile}
         file={fileToOpen}
         type={openModalType}
       />

@@ -19,6 +19,11 @@ const ASSIGNMENT_NOTIFICATION_TYPES = new Set([
   'revision_request', 'for_editing',
 ]);
 
+// Notification types that navigate directly to Tasks and highlight the assignment card
+const TASK_HIGHLIGHT_TYPES = new Set([
+  'due_soon', 'overdue', 'assignment', 'checker_done', 'attachment', 'attachment_uploaded',
+]);
+
 const POLL_INTERVAL = 30000; // 30s fallback poll (SSE handles real-time; this catches missed events)
 
 const NotificationTab = ({ user, onOpenFile, onNavigateToTasks, onNavigate, onUpdateUnreadCount }) => {
@@ -194,6 +199,18 @@ const NotificationTab = ({ user, onOpenFile, onNavigateToTasks, onNavigate, onUp
       } else {
         if (onNavigate) onNavigate('my-files', null);
       }
+      return;
+    }
+
+    // Direct task highlight types (overdue, due_soon, new assignment, etc.)
+    // Navigate directly to Tasks and highlight the assignment card.
+    if (TASK_HIGHLIGHT_TYPES.has(notification.type) && notification.assignment_id) {
+      if (onNavigate) onNavigate('tasks', {
+        assignmentId: notification.assignment_id,
+        fileId: notification.file_id || null,
+        fileStatus: null,
+        shouldOpenComments: false,
+      });
       return;
     }
 

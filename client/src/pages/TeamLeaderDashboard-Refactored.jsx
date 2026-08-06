@@ -629,6 +629,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
             description: '',
             dueDate: '',
             fileTypeRequired: '',
+            requiredFilesCount: 0,
             assignedMembers: [],
             selectedTeam: uniqueTeams && uniqueTeams.length === 1 ? uniqueTeams[0] : '',
             otDates: [],
@@ -685,6 +686,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         formData.append('dueDate', assignmentForm.dueDate || '')
         formData.append('otDates', JSON.stringify(otDates || []))
         formData.append('fileTypeRequired', assignmentForm.fileTypeRequired || '')
+        formData.append('requiredFilesCount', assignmentForm.requiredFilesCount || 0)
         formData.append('complexity', assignmentForm.complexity || 'Medium')
         formData.append('assignedTo', assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific')
         formData.append('assignedMembers', JSON.stringify(
@@ -731,6 +733,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
                 dueDate: assignmentForm.dueDate || '',
                 otDates: JSON.stringify(otDates || []),
                 fileTypeRequired: assignmentForm.fileTypeRequired || '',
+                requiredFilesCount: assignmentForm.requiredFilesCount || 0,
                 complexity: assignmentForm.complexity || 'Medium',
                 assignedTo: assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific',
                 assignedMembers: assignmentForm.assignedMembers.includes('__ALL__') ? [] : assignmentForm.assignedMembers,
@@ -760,6 +763,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
             dueDate: assignmentForm.dueDate || '',
             otDates: JSON.stringify(otDates || []),
             fileTypeRequired: assignmentForm.fileTypeRequired || '',
+            requiredFilesCount: assignmentForm.requiredFilesCount || 0,
             complexity: assignmentForm.complexity || 'Medium',
             assignedTo: assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific',
             assignedMembers: assignmentForm.assignedMembers.includes('__ALL__') ? [] : assignmentForm.assignedMembers,
@@ -816,6 +820,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         description: a.description || '',
         dueDate: formattedDueDate,
         fileTypeRequired: a.file_type_required || a.fileTypeRequired || '',
+        requiredFilesCount: a.required_files_count || 0,
         assignedMembers: (a.assigned_member_details || []).map(m => m.id),
         selectedTeam: a.team || '',
         otDates: parseOtDates(a.ot_dates),
@@ -1601,9 +1606,11 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
                       description: '',
                       dueDate: '',
                       fileTypeRequired: '',
+                      requiredFilesCount: 0,
                       assignedMembers: [],
                       selectedTeam: uniqueTeams && uniqueTeams.length === 1 ? uniqueTeams[0] : '',
-                      otDates: []
+                      otDates: [],
+                      complexity: 'Medium'
                     })
                   }}
                 />

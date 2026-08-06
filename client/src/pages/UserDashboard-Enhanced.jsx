@@ -217,7 +217,7 @@ const UserDashboard = ({ user, onLogout }) => {
       if (data.success && data.files) {
         const file = data.files.find(f => f.id === parseInt(fileId))
         if (file) {
-          setActiveTab('my-files')
+          handleTabChange('my-files')
           openFileModal(file)
         } else {
           setError('File not found')
@@ -227,14 +227,14 @@ const UserDashboard = ({ user, onLogout }) => {
       console.error('Error fetching file:', error)
       setError('Failed to connect to server')
     }
-  }, [user.id, openFileModal])
+  }, [user.id, openFileModal, handleTabChange])
 
   const navigateToTasks = useCallback((assignmentId = null) => {
-    setActiveTab('tasks')
+    handleTabChange('tasks')
     if (assignmentId) {
       setHighlightedAssignmentId(assignmentId)
     }
-  }, [])
+  }, [handleTabChange])
 
   const [taskInitialTab, setTaskInitialTab] = useState(null) // 'for-checking' | null
   const clearInitialTab = useCallback(() => setTaskInitialTab(null), [])
@@ -251,11 +251,16 @@ const UserDashboard = ({ user, onLogout }) => {
       ...(storedContext ? JSON.parse(storedContext) : {})
     }
 
-    setActiveTab(tab)
+    handleTabChange(tab)
 
     if (mergedContext) {
       if (mergedContext.forChecking || mergedContext.initialTab === 'for-checking') setTaskInitialTab('for-checking')
-      if (mergedContext.assignmentId) setHighlightedAssignmentId(mergedContext.assignmentId)
+      if (mergedContext.assignmentId) {
+        // Always reset to null first so React always fires a state change,
+        // even if clicking the same notification twice (or after auto-clear).
+        setHighlightedAssignmentId(null)
+        setTimeout(() => setHighlightedAssignmentId(mergedContext.assignmentId), 0)
+      }
       if (mergedContext.fileId) setHighlightedFileId(mergedContext.fileId)
       if (mergedContext.fileStatus) setHighlightedFileStatus(mergedContext.fileStatus)
       if (mergedContext.shouldOpenComments || mergedContext.expandAllReplies) {
@@ -267,18 +272,18 @@ const UserDashboard = ({ user, onLogout }) => {
     sessionStorage.removeItem('highlightFileId')
     sessionStorage.removeItem('notificationContext')
     sessionStorage.removeItem('fromNotificationId')
-  }, [])
+  }, [handleTabChange])
 
   const handleToastNavigation = useCallback(async (tabName, contextData) => {
     if (tabName === 'my-files' && contextData) {
       await openFileByIdFromNotification(contextData)
     } else if (tabName === 'tasks' && contextData) {
-      setActiveTab('tasks')
+      handleTabChange('tasks')
       sessionStorage.setItem('scrollToAssignment', contextData)
     } else {
-      setActiveTab(tabName)
+      handleTabChange(tabName)
     }
-  }, [openFileByIdFromNotification])
+  }, [openFileByIdFromNotification, handleTabChange])
 
   // Stable callbacks for clearing highlights — created once
   const clearHighlight = useCallback(() => setHighlightedAssignmentId(null), [])

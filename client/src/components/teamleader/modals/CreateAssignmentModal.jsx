@@ -513,6 +513,26 @@ const CreateAssignmentModal = ({
               </div>
             </div>
 
+            <div className="tl-form-row">
+              <div className="tl-form-group">
+                <label>Required Files (0 for any)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={assignmentForm.requiredFilesCount !== undefined ? assignmentForm.requiredFilesCount : 0}
+                  onChange={(e) => setAssignmentForm({ ...assignmentForm, requiredFilesCount: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)) })}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #D1D5DB',
+                    background: 'var(--background-secondary)',
+                    height: '38px'
+                  }}
+                />
+              </div>
+            </div>
+
             {/* ── Approved OT Weekend Dates ─────────────────────────── */}
             {assignmentForm.dueDate && (() => {
               const weekends = getWeekendDatesBetween(assignmentForm.dueDate);
