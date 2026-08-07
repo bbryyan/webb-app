@@ -147,7 +147,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
     assignedMembers: [],
     selectedTeam: '',
     otDates: [],
-    complexity: 'Medium'
+    complexity: 'Medium',
+    requiredFileCount: ''
   })
   const [editingAssignmentId, setEditingAssignmentId] = useState(null)
   const [modalInitialAttachments, setModalInitialAttachments] = useState([])
@@ -548,7 +549,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         assignedMembers: [],
         selectedTeam: uniqueTeams && uniqueTeams.length === 1 ? uniqueTeams[0] : '',
         otDates: [],
-        complexity: 'Medium'
+        complexity: 'Medium',
+        requiredFileCount: ''
       })
     }
 
@@ -568,11 +570,14 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         team: assignmentForm.selectedTeam || user.team,
         team_leader_id: user.id,
         team_leader_username: user.username,
+        team_leader_fullname: user.fullName || user.full_name || user.username,
+        team_leader_profile_picture: user.profile_picture || null,
         status: 'active',
         assigned_member_details: [],
         attachments: [],
         recent_submissions: [],
         created_at: new Date().toISOString(),
+        required_file_count: assignmentForm.requiredFileCount ? Number(assignmentForm.requiredFileCount) : null,
         _isTemp: true
       }
       setAssignments(prev => [tempTask, ...prev])
@@ -588,7 +593,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         assignedMembers: [],
         selectedTeam: uniqueTeams && uniqueTeams.length === 1 ? uniqueTeams[0] : '',
         otDates: [],
-        complexity: 'Medium'
+        complexity: 'Medium',
+        requiredFileCount: ''
       })
     }
 
@@ -632,7 +638,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
             assignedMembers: [],
             selectedTeam: uniqueTeams && uniqueTeams.length === 1 ? uniqueTeams[0] : '',
             otDates: [],
-            complexity: 'Medium'
+            complexity: 'Medium',
+            requiredFileCount: ''
           })
         }
         // Always do a silent refresh to replace temp/optimistic data with real server data
@@ -686,6 +693,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         formData.append('otDates', JSON.stringify(otDates || []))
         formData.append('fileTypeRequired', assignmentForm.fileTypeRequired || '')
         formData.append('complexity', assignmentForm.complexity || 'Medium')
+        formData.append('requiredFileCount', assignmentForm.requiredFileCount || '')
         formData.append('assignedTo', assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific')
         formData.append('assignedMembers', JSON.stringify(
           assignmentForm.assignedMembers.includes('__ALL__') ? [] : assignmentForm.assignedMembers
@@ -732,6 +740,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
                 otDates: JSON.stringify(otDates || []),
                 fileTypeRequired: assignmentForm.fileTypeRequired || '',
                 complexity: assignmentForm.complexity || 'Medium',
+                requiredFileCount: assignmentForm.requiredFileCount || '',
                 assignedTo: assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific',
                 assignedMembers: assignmentForm.assignedMembers.includes('__ALL__') ? [] : assignmentForm.assignedMembers,
                 teamLeaderId: user.id,
@@ -761,6 +770,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
             otDates: JSON.stringify(otDates || []),
             fileTypeRequired: assignmentForm.fileTypeRequired || '',
             complexity: assignmentForm.complexity || 'Medium',
+            requiredFileCount: assignmentForm.requiredFileCount || '',
             assignedTo: assignmentForm.assignedMembers.includes('__ALL__') ? 'all' : 'specific',
             assignedMembers: assignmentForm.assignedMembers.includes('__ALL__') ? [] : assignmentForm.assignedMembers,
             teamLeaderId: user.id,
@@ -819,7 +829,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
         assignedMembers: (a.assigned_member_details || []).map(m => m.id),
         selectedTeam: a.team || '',
         otDates: parseOtDates(a.ot_dates),
-        complexity: a.complexity || 'Medium'
+        complexity: a.complexity || 'Medium',
+        requiredFileCount: a.required_file_count || ''
       }
     }
 

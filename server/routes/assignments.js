@@ -880,7 +880,7 @@ router.get('/:assignmentId/details', authenticateToken, async (req, res) => {
 // POST /create-json — no file uploads (bypasses multer, avoids Electron replay)
 router.post('/create-json', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']), async (req, res) => {
   try {
-    const { title, description, dueDate, fileTypeRequired, complexity, assignedTo, assignedMembers, teamLeaderId, teamLeaderUsername, team } = req.body;
+    const { title, description, dueDate, fileTypeRequired, complexity, assignedTo, assignedMembers, teamLeaderId, teamLeaderUsername, team, requiredFileCount } = req.body;
     if (!title || !team || !teamLeaderId) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
@@ -902,9 +902,9 @@ router.post('/create-json', authenticateToken, authorizeRole(['TEAM_LEADER', 'AD
     const assignmentResult = await (async () => {
       try {
         return await query(
-          `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active')`,
-          [title, description || null, dueDate || null, finalOtDates, fileTypeRequired || null, complexity || 'Medium', assignedTo || 'specific', 10485760, teamLeaderId, teamLeaderUsername, team]
+          `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status, required_file_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active', ?)`,
+          [title, description || null, dueDate || null, finalOtDates, fileTypeRequired || null, complexity || 'Medium', assignedTo || 'specific', 10485760, teamLeaderId, teamLeaderUsername, team, requiredFileCount ? parseInt(requiredFileCount, 10) : null]
         );
       } catch (insertErr) {
         if (insertErr.message && insertErr.message.toLowerCase().includes('ot_dates')) {
@@ -912,9 +912,9 @@ router.post('/create-json', authenticateToken, authorizeRole(['TEAM_LEADER', 'AD
             await query('ALTER TABLE assignments ADD COLUMN ot_dates TEXT NULL AFTER due_date');
           } catch { /* ignored */ }
           return await query(
-            `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active')`,
-            [title, description || null, dueDate || null, finalOtDates, fileTypeRequired || null, complexity || 'Medium', assignedTo || 'specific', 10485760, teamLeaderId, teamLeaderUsername, team]
+            `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status, required_file_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active', ?)`,
+            [title, description || null, dueDate || null, finalOtDates, fileTypeRequired || null, complexity || 'Medium', assignedTo || 'specific', 10485760, teamLeaderId, teamLeaderUsername, team, requiredFileCount ? parseInt(requiredFileCount, 10) : null]
           );
         }
         throw insertErr;
@@ -993,7 +993,7 @@ router.post('/create', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']
       title, description, dueDate, due_date, fileTypeRequired, file_type_required,
       assignedTo, assigned_to, maxFileSize, max_file_size,
       assignedMembers, assigned_members, teamLeaderId, team_leader_id,
-      teamLeaderUsername, team_leader_username, team
+      teamLeaderUsername, team_leader_username, team, requiredFileCount
     } = req.body;
 
     const finalDueDate = dueDate || due_date;
@@ -1003,6 +1003,7 @@ router.post('/create', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']
     const finalMembers = typeof assignedMembers === 'string' ? JSON.parse(assignedMembers) : (assignedMembers || assigned_members);
     const finalTeamLeaderId = teamLeaderId || team_leader_id;
     const finalTeamLeaderUsername = teamLeaderUsername || team_leader_username;
+    const finalRequiredFileCount = requiredFileCount ? parseInt(requiredFileCount, 10) : null;
     // Parse approved OT weekend dates (JSON array of "YYYY-MM-DD" strings)
     let finalOtDates = null;
     try {
@@ -1057,9 +1058,9 @@ router.post('/create', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']
     }
 
     const assignmentResult = await query(
-      `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active')`,
-      [title, description || null, finalDueDate || null, finalOtDates, finalFileType || null, req.body.complexity || 'Medium', finalAssignedTo, finalMaxSize, finalTeamLeaderId, finalTeamLeaderUsername, team]
+      `INSERT INTO assignments (title, description, due_date, ot_dates, file_type_required, complexity, assigned_to, max_file_size, team_leader_id, team_leader_username, team, created_at, status, required_file_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active', ?)`,
+      [title, description || null, finalDueDate || null, finalOtDates, finalFileType || null, req.body.complexity || 'Medium', finalAssignedTo, finalMaxSize, finalTeamLeaderId, finalTeamLeaderUsername, team, finalRequiredFileCount]
     );
     const assignmentId = assignmentResult.insertId;
 
@@ -1191,7 +1192,7 @@ router.put('/:id', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']), u
       title, description, dueDate, due_date, fileTypeRequired, file_type_required,
       assignedTo, assigned_to, maxFileSize, max_file_size,
       assignedMembers, assigned_members, teamLeaderId, team_leader_id,
-      teamLeaderUsername, team_leader_username, team, complexity
+      teamLeaderUsername, team_leader_username, team, complexity, requiredFileCount
     } = req.body;
 
     const finalDueDate = dueDate || due_date;
@@ -1201,6 +1202,7 @@ router.put('/:id', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']), u
     const finalMembers = typeof assignedMembers === 'string' ? JSON.parse(assignedMembers) : (assignedMembers || assigned_members);
     const finalTeamLeaderId = teamLeaderId || team_leader_id;
     const finalTeamLeaderUsername = teamLeaderUsername || team_leader_username;
+    const finalRequiredFileCount = requiredFileCount ? parseInt(requiredFileCount, 10) : null;
     // Parse approved OT weekend dates for PUT (update)
     let finalOtDates = undefined; // undefined = don't change
     try {
@@ -1235,8 +1237,8 @@ router.put('/:id', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']), u
         }
       }
       await query(
-        'UPDATE assignments SET title=?, description=?, due_date=?, ot_dates=COALESCE(?,ot_dates), file_type_required=?, due_date_edited=?, original_due_date=?, updated_at=?, complexity=COALESCE(?, complexity) WHERE id=?',
-        [title, description || null, finalDueDate || null, finalOtDates !== undefined ? finalOtDates : null, finalFileType || null, dueDateEdited, originalDueDate, now, complexity, id]
+        'UPDATE assignments SET title=?, description=?, due_date=?, ot_dates=COALESCE(?,ot_dates), file_type_required=?, due_date_edited=?, original_due_date=?, updated_at=?, complexity=COALESCE(?, complexity), required_file_count=? WHERE id=?',
+        [title, description || null, finalDueDate || null, finalOtDates !== undefined ? finalOtDates : null, finalFileType || null, dueDateEdited, originalDueDate, now, complexity, finalRequiredFileCount, id]
       );
       return res.json({ success: true, message: 'Assignment updated successfully', membersAssigned: 0, attachmentsCreated: 0 });
     }
@@ -1353,8 +1355,8 @@ router.put('/:id', authenticateToken, authorizeRole(['TEAM_LEADER', 'ADMIN']), u
 
     try {
       await query(
-        'UPDATE assignments SET title=?, description=?, due_date=?, ot_dates=COALESCE(?,ot_dates), file_type_required=?, assigned_to=?, max_file_size=?, due_date_edited=?, original_due_date=?, complexity=COALESCE(?, complexity) WHERE id=?',
-        [title, description || null, finalDueDate || null, finalOtDates !== undefined ? finalOtDates : null, finalFileType || null, finalAssignedTo || existingAssignment.assigned_to, finalMaxSize, dueDateEdited, originalDueDate, complexity, id]
+        'UPDATE assignments SET title=?, description=?, due_date=?, ot_dates=COALESCE(?,ot_dates), file_type_required=?, assigned_to=?, max_file_size=?, due_date_edited=?, original_due_date=?, complexity=COALESCE(?, complexity), required_file_count=? WHERE id=?',
+        [title, description || null, finalDueDate || null, finalOtDates !== undefined ? finalOtDates : null, finalFileType || null, finalAssignedTo || existingAssignment.assigned_to, finalMaxSize, dueDateEdited, originalDueDate, complexity, finalRequiredFileCount, id]
       );
     } catch (updateErr) {
       throw updateErr;

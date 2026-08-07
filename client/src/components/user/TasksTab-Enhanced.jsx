@@ -1755,6 +1755,14 @@ const TasksTab = memo(({
   const handleFileUpload = useCallback(async () => {
     if (!uploadedFiles.length || !currentAssignment) return;
 
+    const userSubmittedFilesCount = (currentAssignment.submitted_files || []).filter(f => String(f.user_id) === String(user.id)).length;
+    const totalFilesAfterUpload = userSubmittedFilesCount + uploadedFiles.length;
+
+    if (currentAssignment.required_file_count && totalFilesAfterUpload > Number(currentAssignment.required_file_count)) {
+      showError(`This task allows a maximum of ${currentAssignment.required_file_count} files. You have already uploaded ${userSubmittedFilesCount}, and are trying to upload ${uploadedFiles.length} more.`);
+      return;
+    }
+
     // Cancel any previous in-flight upload before starting a new one
     if (uploadAbortControllerRef.current) {
       uploadAbortControllerRef.current.abort();
@@ -3394,23 +3402,41 @@ const TasksTab = memo(({
                   </div>
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => { resetSubmitModal(); setShowSubmitModal(false); }}
-                  disabled={false}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--background-secondary)'}
-                >
-                  {isUploading ? 'Stop Upload' : 'Cancel'}
-                </button>
-                <button
-                  onClick={handleFileUpload}
-                  disabled={!uploadedFiles.length || isUploading}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: !uploadedFiles.length || isUploading ? '#d1d5db' : 'var(--status-review-text)', color: 'var(--background-secondary)', fontSize: '14px', fontWeight: '500', cursor: !uploadedFiles.length || isUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  {isUploading ? '⏳ Uploading...' : `✓ Upload ${uploadedFiles.length > 0 ? `${uploadedFiles.length} ` : ''}File${uploadedFiles.length !== 1 ? 's' : ''} & Submit`}
-                </button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                {(() => {
+                  const userSubmittedCount = (currentAssignment?.submitted_files || []).filter(f => String(f.user_id) === String(user.id)).length;
+                  const totalAfterUpload = userSubmittedCount + uploadedFiles.length;
+                  const maxAllowed = currentAssignment?.required_file_count ? Number(currentAssignment.required_file_count) : null;
+                  const isLimitExceeded = maxAllowed !== null && totalAfterUpload > maxAllowed;
+
+                  return (
+                    <>
+                      <div style={{ fontSize: '13px', color: 'var(--status-rejected-text)', fontWeight: '500' }}>
+                        {isLimitExceeded && (
+                          `⚠️ This task allows a maximum of ${maxAllowed} file(s). You have already uploaded ${userSubmittedCount}, and selected ${uploadedFiles.length} more.`
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => { resetSubmitModal(); setShowSubmitModal(false); }}
+                          disabled={false}
+                          style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--background-secondary)'}
+                        >
+                          {isUploading ? 'Stop Upload' : 'Cancel'}
+                        </button>
+                        <button
+                          onClick={handleFileUpload}
+                          disabled={!uploadedFiles.length || isUploading || isLimitExceeded}
+                          style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: (!uploadedFiles.length || isUploading || isLimitExceeded) ? '#d1d5db' : 'var(--status-review-text)', color: 'var(--background-secondary)', fontSize: '14px', fontWeight: '500', cursor: (!uploadedFiles.length || isUploading || isLimitExceeded) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                          {isUploading ? '⏳ Uploading...' : `✓ Upload ${uploadedFiles.length > 0 ? `${uploadedFiles.length} ` : ''}File${uploadedFiles.length !== 1 ? 's' : ''} & Submit`}
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

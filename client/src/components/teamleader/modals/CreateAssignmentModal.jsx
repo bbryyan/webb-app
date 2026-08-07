@@ -511,6 +511,24 @@ const CreateAssignmentModal = ({
                   <option value="High">High (2.0x weight)</option>
                 </select>
               </div>
+              <div className="tl-form-group">
+                <label>Required File Count</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={assignmentForm.requiredFileCount || ''}
+                  onChange={e => setAssignmentForm({ ...assignmentForm, requiredFileCount: e.target.value })}
+                  placeholder="Unlimited"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #D1D5DB',
+                    background: 'var(--background-secondary)',
+                    height: '38px' // Match dropdown buttons
+                  }}
+                />
+              </div>
             </div>
 
             {/* ── Approved OT Weekend Dates ─────────────────────────── */}
