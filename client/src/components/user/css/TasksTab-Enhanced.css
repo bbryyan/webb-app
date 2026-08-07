@@ -1548,9 +1548,9 @@ textarea:focus {
    from a notification click.
    ============================================ */
 
-/* Assignment card highlight — indigo pulse */
+/* Assignment card highlight — indigo pulse (infinite until clicked) */
 .user-assignment-highlighted {
-  animation: userHighlightPulse 1.5s ease-in-out;
+  animation: userHighlightPulse 1.5s ease-in-out infinite;
   border-color: #6366f1 !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3) !important;
 }
@@ -1561,14 +1561,14 @@ textarea:focus {
     border-color: #6366f1;
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.5);
     border-color: var(--status-review-text);
   }
 }
 
-/* File row highlight — neutral indigo (default) */
+/* File row highlight — neutral indigo (default, infinite until clicked) */
 .user-assignment-file-highlighted {
-  animation: userFileHighlightPulse 1.5s ease-in-out;
+  animation: userFileHighlightPulse 1.5s ease-in-out infinite;
   background: rgba(99, 102, 241, 0.08) !important;
   border: 2px solid #6366f1 !important;
   border-radius: 8px;
@@ -1580,14 +1580,14 @@ textarea:focus {
     border-color: #6366f1;
   }
   50% {
-    background: rgba(99, 102, 241, 0.16);
+    background: rgba(99, 102, 241, 0.2);
     border-color: var(--status-review-text);
   }
 }
 
-/* File row highlight — red (rejected files) */
+/* File row highlight — red (rejected files, infinite until clicked) */
 .user-assignment-file-highlighted-rejected {
-  animation: userFileHighlightRejected 1.5s ease-in-out;
+  animation: userFileHighlightRejected 1.5s ease-in-out infinite;
   background: rgba(220, 38, 38, 0.08) !important;
   border: 2px solid #dc2626 !important;
   border-radius: 8px;
@@ -1599,14 +1599,14 @@ textarea:focus {
     border-color: var(--status-rejected-text);
   }
   50% {
-    background: rgba(220, 38, 38, 0.16);
+    background: rgba(220, 38, 38, 0.2);
     border-color: var(--status-rejected-text);
   }
 }
 
-/* File row highlight — amber (revision / for editing files) */
+/* File row highlight — amber (revision / for editing files, infinite until clicked) */
 .user-assignment-file-highlighted-revision {
-  animation: userFileHighlightRevision 1.5s ease-in-out;
+  animation: userFileHighlightRevision 1.5s ease-in-out infinite;
   background: rgba(245, 158, 11, 0.08) !important;
   border: 2px solid #f59e0b !important;
   border-radius: 8px;
@@ -1618,7 +1618,7 @@ textarea:focus {
     border-color: var(--status-pending-text);
   }
   50% {
-    background: rgba(245, 158, 11, 0.16);
+    background: rgba(245, 158, 11, 0.2);
     border-color: var(--status-pending-text);
   }
 }

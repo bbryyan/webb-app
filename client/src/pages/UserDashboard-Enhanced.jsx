@@ -251,7 +251,15 @@ const UserDashboard = ({ user, onLogout }) => {
       ...(storedContext ? JSON.parse(storedContext) : {})
     }
 
-    setActiveTab(tab)
+    // Mark the target tab as visited so the lazy-loaded component mounts
+    startTransition(() => {
+      setActiveTab(tab)
+      setVisitedTabs(prev => {
+        const newSet = new Set(prev)
+        newSet.add(tab)
+        return newSet
+      })
+    })
 
     if (mergedContext) {
       if (mergedContext.forChecking || mergedContext.initialTab === 'for-checking') setTaskInitialTab('for-checking')

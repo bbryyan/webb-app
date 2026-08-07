@@ -134,25 +134,14 @@ export function useSmartNavigation({
                 return;
             }
 
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             element.classList.add(`${prefix}-assignment-highlighted`);
 
-            const clickHandler = () => {
+            // Auto-remove after 3 seconds — no click-to-dismiss
+            timer = setTimeout(() => {
                 element.classList.remove(`${prefix}-assignment-highlighted`);
                 if (onClearHighlight) onClearHighlight();
-                element.removeEventListener('click', clickHandler);
-            };
-            element.addEventListener('click', clickHandler);
-
-            // Replace cleanup timer reference so the return below cancels it too
-            // We also store the clickHandler cleanup so it can be removed if the component unmounts
-            timer = { 
-                isListener: true, 
-                clear: () => {
-                    element.classList.remove(`${prefix}-assignment-highlighted`);
-                    element.removeEventListener('click', clickHandler);
-                } 
-            };
+            }, 3000);
         };
 
         // Small initial delay so a simultaneous tab-switch re-render can settle first,
@@ -160,11 +149,7 @@ export function useSmartNavigation({
         timer = setTimeout(tryHighlight, 400);
 
         return () => {
-            if (timer && timer.isListener) {
-                timer.clear();
-            } else {
-                clearTimeout(timer);
-            }
+            clearTimeout(timer);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [highlightedItemId, items]);
@@ -206,29 +191,16 @@ export function useSmartNavigation({
 
             el.classList.add(highlightClass);
 
-            const clickHandler = () => {
+            // Auto-remove after 3 seconds — no click-to-dismiss
+            timer = setTimeout(() => {
                 el.classList.remove(highlightClass);
                 if (onClearFileHighlight) onClearFileHighlight();
-                el.removeEventListener('click', clickHandler);
-            };
-            el.addEventListener('click', clickHandler);
-
-            timer = {
-                isListener: true,
-                clear: () => {
-                    el.classList.remove(highlightClass);
-                    el.removeEventListener('click', clickHandler);
-                }
-            };
+            }, 3000);
         };
 
         let timer = setTimeout(tryHighlight, 400); // Increased delay so folder expand fires first and scroll animation is smooth
         return () => {
-            if (timer && timer.isListener) {
-                timer.clear();
-            } else {
-                clearTimeout(timer);
-            }
+            clearTimeout(timer);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [highlightedFileId, highlightedItemId, highlightedFileStatus, items]);
