@@ -239,23 +239,49 @@ const TeamManagementTab = ({
 
       {/* Global Controls */}
       {viewMode !== 'users' && !isLoadingTeam && teamMembers.length > 0 && (
-        <div className="file-controls" style={{ marginBottom: '24px' }}>
-          <div className="file-search">
+        <div className="file-controls" style={{ 
+          marginBottom: '24px',
+          display: 'flex',
+          gap: '16px',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <div className="file-search" style={{ flex: '1', minWidth: '250px', maxWidth: '400px' }}>
             <input
               type="text"
               placeholder="Search by name, email, or team..."
               className="search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                fontSize: '14px',
+                background: 'var(--background-secondary)',
+                color: 'var(--text-primary)'
+              }}
             />
           </div>
-          <div className="file-filters">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-select">
+          <div className="file-filters" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <select 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)} 
+              className="form-select"
+              style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--background-secondary)', color: 'var(--text-primary)' }}
+            >
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="form-select">
+            <select 
+              value={sortOrder} 
+              onChange={(e) => setSortOrder(e.target.value)} 
+              className="form-select"
+              style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--background-secondary)', color: 'var(--text-primary)' }}
+            >
               <option value="name-asc">Name A-Z</option>
               <option value="name-desc">Name Z-A</option>
               <option value="files-desc">Most Files</option>
@@ -264,7 +290,12 @@ const TeamManagementTab = ({
               <option value="joined-asc">Earliest Joined</option>
             </select>
             {uniqueTeams.length > 1 && (
-              <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} className="form-select">
+              <select 
+                value={teamFilter} 
+                onChange={(e) => setTeamFilter(e.target.value)} 
+                className="form-select"
+                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--background-secondary)', color: 'var(--text-primary)' }}
+              >
                 <option value="all">All Teams</option>
                 {uniqueTeams.map(team => <option key={team} value={team}>{team}</option>)}
               </select>
