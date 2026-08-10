@@ -46,12 +46,13 @@ function App() {
         try {
           const res = await fetch(`${API_BASE_URL}/api/health`, { cache: 'no-store' })
           const data = await res.json()
+          console.log(`[App] /api/health returned:`, data)
           if (data.dbReady) {
             if (!cancelled) setDbReady(true)
             return
           }
-        } catch (_) {
-          // server not yet responding — keep polling
+        } catch (error) {
+          console.error(`[App] /api/health fetch failed:`, error.message)
         }
         await new Promise(r => setTimeout(r, 600))
       }

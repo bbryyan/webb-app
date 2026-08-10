@@ -21,7 +21,7 @@ const ASSIGNMENT_NOTIFICATION_TYPES = new Set([
 
 const POLL_INTERVAL = 30000; // 30s fallback poll (SSE handles real-time; this catches missed events)
 
-const NotificationTab = ({ user, onOpenFile, onNavigateToTasks, onNavigate, onUpdateUnreadCount }) => {
+const NotificationTab = ({ user, onOpenFile, onNavigateToTasks, onNavigate, onUpdateUnreadCount, refreshTrigger }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -72,36 +72,12 @@ const NotificationTab = ({ user, onOpenFile, onNavigateToTasks, onNavigate, onUp
     };
   }, [fetchNotifications]);
 
-  // SSE — server pushes a ping the instant a new notification is created
+  // Listen to ping from parent dashboard instead of keeping a redundant SSE connection
   useEffect(() => {
-    let es;
-    let reconnectTimer;
-
-    const connect = () => {
-      const { token } = useStore.getState();
-      es = new EventSource(`${API_BASE_URL}/api/notifications/user/${user.id}/stream${token ? `?token=${token}` : ''}`);
-
-      es.onmessage = (event) => {
-        if (event.data === 'ping') {
-          // Immediately refetch so badge + list update without waiting for the poll
-          fetchNotifications();
-        }
-      };
-
-      es.onerror = () => {
-        es.close();
-        // Reconnect after 5 s on error / network blip
-        reconnectTimer = setTimeout(connect, 5000);
-      };
-    };
-
-    connect();
-
-    return () => {
-      if (es) es.close();
-      clearTimeout(reconnectTimer);
-    };
-  }, [user.id, fetchNotifications]);
+    if (refreshTrigger) {
+      fetchNotifications();
+    }
+  }, [refreshTrigger, fetchNotifications]);
 
   const isFolderNotification = useCallback((notification) => {
     const folderKeywords = ['Folder Approved', 'Folder Rejected', 'Folder Partially', 'Folder Mostly'];

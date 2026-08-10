@@ -11,6 +11,7 @@ function authenticateToken(req, res, next) {
   const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
   if (!token) {
+    console.error(`❌ [auth.js] No token provided for ${req.method} ${req.originalUrl}. authHeader: "${authHeader}", query token: "${req.query.token}"`);
     return res.status(401).json({
       success: false,
       message: 'Authentication required: No token provided'
@@ -19,7 +20,7 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
-      console.error('🔓 JWT Verification Failed:', err.message);
+      console.error(`🔓 [auth.js] JWT Verification Failed for ${req.method} ${req.originalUrl}:`, err.message);
       // In development, log the token prefix to help debug secret mismatches
       if (process.env.NODE_ENV !== 'production') {
         console.log('Token prefix:', token.substring(0, 15) + '...');

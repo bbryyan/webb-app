@@ -102,7 +102,7 @@ const NotificationItem = memo(({ notification, onNotificationClick, onDeleteNoti
 
 NotificationItem.displayName = 'NotificationItem';
 
-const Notifications = ({ user, onNavigate, onRead }) => {
+const Notifications = ({ user, onNavigate, onRead, refreshTrigger }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -173,32 +173,12 @@ const Notifications = ({ user, onNavigate, onRead }) => {
     fetchNotifications(1, true);
   }, [fetchNotifications]);
 
-  // ── SSE — instant push the moment a notification is created ──────────────
+  // ── Listen to refreshTrigger from parent dashboard instead of redundant SSE ──────────────
   useEffect(() => {
-    let es;
-    let reconnectTimer;
-
-    const connect = () => {
-      const { token } = useStore.getState();
-      const url = `${API_BASE_URL}/api/notifications/user/${user.id}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-      es = new EventSource(url);
-
-      es.onmessage = (event) => {
-        if (event.data === 'ping') fetchNotifications(1, true, true);
-      };
-
-      es.onerror = () => {
-        es.close();
-        reconnectTimer = setTimeout(connect, 5000);
-      };
-    };
-
-    connect();
-    return () => {
-      if (es) es.close();
-      clearTimeout(reconnectTimer);
-    };
-  }, [user.id, fetchNotifications]);
+    if (refreshTrigger) {
+      fetchNotifications(1, true, true);
+    }
+  }, [refreshTrigger, fetchNotifications]);
 
   // ── Infinite scroll ───────────────────────────────────────────────────────
   useEffect(() => {

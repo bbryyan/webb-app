@@ -144,13 +144,15 @@ function logActivity(db, userId, username, role, team, action) {
     'INSERT INTO activity_logs (user_id, username, role, team, activity, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
     [userId, username, normalizedRole, team, action, timestamp]
   ).then(() => {
-    // Automatically keep only the latest 100 logs (FIFO)
+    // Keep only the newest 100 logs
     return mysqlDb.query(`
       DELETE FROM activity_logs 
       WHERE id NOT IN (
         SELECT id FROM (
-          SELECT id FROM activity_logs ORDER BY id DESC LIMIT 100
-        ) as tmp
+          SELECT id FROM activity_logs 
+          ORDER BY timestamp DESC 
+          LIMIT 100
+        ) as keep
       )
     `);
   }).catch(err => {

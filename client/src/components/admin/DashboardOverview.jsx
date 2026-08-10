@@ -41,7 +41,7 @@ const ActivityItem = memo(({ act }) => {
 })
 ActivityItem.displayName = 'ActivityItem'
 
-const DashboardOverview = () => {
+const DashboardOverview = ({ isActive = true }) => {
   const { isConnected } = useNetwork()
 
   const [loading, setLoading] = useState(true)
@@ -227,7 +227,7 @@ const DashboardOverview = () => {
               <h3>File Approval Trends</h3>
             </div>
             <div className="chart-content">
-              <ApprovalTrendChart trends={memoizedTrends} loading={loading} />
+              {isActive && <ApprovalTrendChart trends={memoizedTrends} loading={loading} />}
             </div>
           </div>
 
@@ -237,7 +237,7 @@ const DashboardOverview = () => {
               <span className="chart-subtitle">All file types tracked</span>
             </div>
             <div className="chart-content">
-              <AnimatedPieChart fileTypes={memoizedFileTypes} loading={loading} />
+              {isActive && <AnimatedPieChart fileTypes={memoizedFileTypes} loading={loading} />}
             </div>
           </div>
         </div>

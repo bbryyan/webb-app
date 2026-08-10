@@ -156,6 +156,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [activeBroadcast, setActiveBroadcast] = useState(null)
   const [broadcastQueue, setBroadcastQueue] = useState([])
   const [debugSseData, setDebugSseData] = useState('No SSE received yet')
+  const [notificationPing, setNotificationPing] = useState(0)
 
   // On mount, fetch offline broadcasts
   useEffect(() => {
@@ -272,6 +273,7 @@ const AdminDashboard = ({ user, onLogout }) => {
           if (now - lastNotifFetch.current < 5000) return
           lastNotifFetch.current = now
           fetchNotifications()
+          setNotificationPing(Date.now())
         } else {
           try {
             const data = JSON.parse(event.data);
@@ -436,7 +438,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                 {/* Content Area */}
                 <div className="content-area">
                   <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none', height: '100%' }}>
-                    {visitedTabs.has('dashboard') && <DashboardOverview />}
+                    {visitedTabs.has('dashboard') && <DashboardOverview isActive={activeTab === 'dashboard'} />}
                   </div>
                   <div style={{ display: activeTab === 'users' ? 'block' : 'none', height: '100%' }}>
                     {visitedTabs.has('users') && <UserManagement {...commonProps} user={user} contextData={contextData} />}
@@ -466,7 +468,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                     />}
                   </div>
                   <div style={{ display: activeTab === 'notifications' ? 'block' : 'none', height: '100%' }}>
-                    {visitedTabs.has('notifications') && <Notifications user={user} onNavigate={handleNotificationNavigation} onRead={handleNotificationsRead} />}
+                    {visitedTabs.has('notifications') && <Notifications user={user} onNavigate={handleNotificationNavigation} onRead={handleNotificationsRead} refreshTrigger={notificationPing} />}
                   </div>
                   <div style={{ display: activeTab === 'settings' ? 'block' : 'none', height: '100%' }}>
                     {visitedTabs.has('settings') && <Settings {...commonProps} users={users} user={user} />}

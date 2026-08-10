@@ -163,6 +163,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
   const [activeBroadcast, setActiveBroadcast] = useState(null)
   const [broadcastQueue, setBroadcastQueue] = useState([])
   const seenBroadcasts = useRef(new Set())
+  const [notificationPing, setNotificationPing] = useState(0)
   const updateUser = useStore(state => state.updateUser)
 
   const refreshUserProfile = async () => {
@@ -261,6 +262,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
           lastFetch = now
           fetchNotifications()
           fetchAssignments()  // refresh assignments so new member submissions appear instantly
+          setNotificationPing(Date.now())
         } else {
           try {
             const data = JSON.parse(event.data);
@@ -1512,6 +1514,7 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
                       user={user}
                       onRead={handleNotificationsRead}
                       onNavigate={handleNotificationNavigation}
+                      refreshTrigger={notificationPing}
                     />
                   </Suspense>
                 )}

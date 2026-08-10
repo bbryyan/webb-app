@@ -3,7 +3,7 @@ import { apiFetch, API_BASE_URL } from '@/config/api';
 import './css/NotificationBell.css';
 import { useTaskbarFlash } from '../../utils/useTaskbarFlash';
 
-const NotificationBell = ({ userId, onNotificationClick }) => {
+const NotificationBell = ({ userId, onNotificationClick, refreshTrigger }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pulse, setPulse] = useState(false);
   const unreadCountRef = useRef(0);
@@ -31,58 +31,14 @@ const NotificationBell = ({ userId, onNotificationClick }) => {
 
   useEffect(() => {
     if (!userId) return;
-
     fetchUnreadCount();
-
-    // ── SSE: get instant ping when a notification is pushed ──────────────
-    const token = (() => {
-      try {
-        // Zustand store keeps the token; read it from localStorage as fallback
-        const raw = localStorage.getItem('kmti-auth') || localStorage.getItem('auth-storage');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          return parsed?.state?.token || parsed?.token || null;
-        }
-      } catch (_) {}
-      return null;
-    })();
-
-    let es;
-    let retryTimeout;
-    let retries = 0;
-
-    const connectSSE = () => {
-      const url = `${API_BASE_URL}/api/notifications/user/${userId}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-      es = new EventSource(url);
-
-      es.onmessage = (e) => {
-        if (e.data === 'ping') {
-          // A new notification was pushed — refetch immediately
-          fetchUnreadCount();
-        }
-      };
-
-      es.onerror = () => {
-        es.close();
-        // Reconnect with exponential back-off (max 30s)
-        const delay = Math.min(1000 * Math.pow(2, retries++), 30000);
-        retryTimeout = setTimeout(connectSSE, delay);
-      };
-
-      es.onopen = () => { retries = 0; };
-    };
-
-    connectSSE();
-
-    // ── Fallback polling every 5 minutes (SSE handles real-time, this is recovery only) ──
-    const interval = setInterval(fetchUnreadCount, 300000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(retryTimeout);
-      if (es) es.close();
-    };
   }, [userId]);
+
+  useEffect(() => {
+    if (refreshTrigger) {
+      fetchUnreadCount();
+    }
+  }, [refreshTrigger]);
 
   return (
     <button

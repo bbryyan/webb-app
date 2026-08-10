@@ -28,13 +28,7 @@ const root = ReactDOM.createRoot(rootElement)
 
 root.render(
   <ErrorBoundary>
-    {isDevelopment ? (
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    ) : (
-      <App />
-    )}
+    <App />
   </ErrorBoundary>
 )
 

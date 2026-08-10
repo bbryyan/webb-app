@@ -40,6 +40,7 @@ const UserDashboard = ({ user, onLogout }) => {
   const [fileComments, setFileComments] = useState([])
   const [notificationCount, setNotificationCount] = useState(0)
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+  const [notificationPing, setNotificationPing] = useState(0)
 
   // Wrap in startTransition so badge updates never block scroll/interaction
   const handleUpdateUnreadCount = useCallback((count) => {
@@ -100,6 +101,7 @@ const UserDashboard = ({ user, onLogout }) => {
       es.onmessage = (event) => {
         if (event.data === 'ping') {
           fetchUnreadCount()
+          setNotificationPing(Date.now())
         } else {
           try {
             const data = JSON.parse(event.data);
@@ -376,6 +378,7 @@ const UserDashboard = ({ user, onLogout }) => {
                     onNavigateToTasks={navigateToTasks}
                     onNavigate={handleSmartNavigation}
                     onUpdateUnreadCount={handleUpdateUnreadCount}
+                    refreshTrigger={notificationPing}
                   />
                 </Suspense>
               )}

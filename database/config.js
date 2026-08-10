@@ -27,12 +27,12 @@ const MYSQL_CONFIG = {
   connectionLimit: 20,           // Optimized for NAS connection limits
   queueLimit: 0,                 // 0 = unlimited queueing in memory instead of failing
   acquireTimeout: 10000,        // Max time to get a conn from pool
-  connectTimeout: 15000,        // Handshake timeout
+  connectTimeout: 10000,        // Handshake timeout
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000, // Keep connection active
   charset: 'utf8mb4',           
   maxIdle: 10,                  // Cleanup idle connections
-  idleTimeout: 60000            
+  idleTimeout: 15000            // Lowered from 60000 to prevent silent drops by NAS firewall
 };
 
 const currentConfig = MYSQL_CONFIG;
@@ -84,12 +84,16 @@ async function testConnection() {
 // ============================================================================
 
 // Execute a single query using a pooled connection
-async function query(sql, params = []) {
+async function query(sql, params = [], retries = 3) {
   const pool = getPool();
   try {
     const [results] = await pool.execute(sql, params);
     return results;
   } catch (error) {
+    if (retries > 0 && (error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST' || error.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' || error.code === 'ETIMEDOUT')) {
+      console.log(`⚠️ Connection lost (Query). Retrying... (${retries} left)`);
+      return query(sql, params, retries - 1);
+    }
     console.error('❌ Query error:', error.message);
     console.error('❌ Error code:', error.code || 'N/A');
     console.error('❌ SQL state:', error.sqlState || 'N/A');
@@ -115,18 +119,25 @@ async function queryOne(sql, params = []) {
  *     ['SELECT COUNT(*) as approved FROM files WHERE status = ?', ['final_approved']],
  *   ]);
  */
-async function queryBatch(queries) {
+async function queryBatch(queries, retries = 3) {
   const pool = getPool();
-  const connection = await pool.getConnection();
+  let connection;
   try {
+    connection = await pool.getConnection();
     const results = [];
     for (const [sql, params = []] of queries) {
       const [rows] = await connection.execute(sql, params);
       results.push(rows);
     }
     return results;
+  } catch (error) {
+    if (retries > 0 && (error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST' || error.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' || error.code === 'ETIMEDOUT')) {
+      console.log(`⚠️ Connection lost (Batch). Retrying... (${retries} left)`);
+      return queryBatch(queries, retries - 1);
+    }
+    throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
@@ -137,20 +148,25 @@ async function queryOneBatch(queries) {
 }
 
 // Execute transaction
-async function transaction(callback) {
+async function transaction(callback, retries = 3) {
   const pool = getPool();
-  const connection = await pool.getConnection();
+  let connection;
   try {
+    connection = await pool.getConnection();
     await connection.beginTransaction();
     const result = await callback(connection);
     await connection.commit();
     return result;
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
+    if (retries > 0 && (error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST' || error.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' || error.code === 'ETIMEDOUT')) {
+      console.log(`⚠️ Connection lost (Transaction). Retrying... (${retries} left)`);
+      return transaction(callback, retries - 1);
+    }
     console.error('❌ Transaction failed:', error.message);
     throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 

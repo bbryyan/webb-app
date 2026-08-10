@@ -22,6 +22,7 @@ router.post('/login', validate(schemas.login), asyncHandler(async (req, res) => 
 
   logInfo('Login attempt', { email, loginType });
 
+  const startLogin = Date.now();
   // Find user by email OR username
   const query = email.includes('@')
     ? 'SELECT * FROM users WHERE email = ?'
@@ -58,6 +59,7 @@ router.post('/login', validate(schemas.login), asyncHandler(async (req, res) => 
     }
     throw dbErr; // re-throw unexpected errors
   }
+  logInfo(`[Perf] DB fetch user took ${Date.now() - startLogin}ms`);
 
   if (!user) {
     logInfo('Login failed - user not found', { email });
@@ -65,7 +67,10 @@ router.post('/login', validate(schemas.login), asyncHandler(async (req, res) => 
   }
 
   // Verify password
-  const isValidPassword = bcrypt.compareSync(password, user.password);
+  const startBcrypt = Date.now();
+  const isValidPassword = await bcrypt.compare(password, user.password);
+  logInfo(`[Perf] bcrypt.compare took ${Date.now() - startBcrypt}ms`);
+  
   if (!isValidPassword) {
     logInfo('Login failed - invalid password', { email });
     throw new AuthenticationError('Invalid email or password');
@@ -140,6 +145,8 @@ router.post('/login', validate(schemas.login), asyncHandler(async (req, res) => 
   }
 
   userWithoutPassword.ledTeams = ledTeams;
+
+  logInfo(`[Perf] Total login time before JWT: ${Date.now() - startLogin}ms`);
 
   // Generate JWT
   const tokenPayload = {
