@@ -9,12 +9,14 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
   const qualityFactor = performance?.qualityFactor ?? 0;
   const efficiencyRatio = performance?.efficiencyRatio ?? 0;
   const onTimeRate = performance?.onTimeRate ?? 0;
+  const contributionScore = performance?.contributionScore ?? 0;
   const fileRejected = performance?.fileRejected ?? 0;
   const overdue = performance?.overdue ?? 0;
 
-  const qualityPts = Math.round(qualityFactor * 0.45);
-  const speedPts = Math.round(Math.min(150, efficiencyRatio * 100) * 0.35);
-  const reliabilityPts = Math.round(onTimeRate * 0.20);
+  const qualityPts = Math.round(qualityFactor * 0.40);
+  const speedPts = Math.round(Math.min(150, efficiencyRatio * 100) * 0.30);
+  const reliabilityPts = Math.round(onTimeRate * 0.15);
+  const contributionPts = Math.round(Math.min(150, contributionScore * 100) * 0.15);
 
   const modalContent = (
     <div className="perf-modal-overlay" onClick={onClose}>
@@ -44,7 +46,7 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Formula Breakdown</span>
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#6366f1' }}>
-                {qualityPts} + {speedPts} + {reliabilityPts} pts
+                {qualityPts} + {speedPts} + {reliabilityPts} + {contributionPts} pts
               </div>
               {(fileRejected > 0 || overdue > 0) && (
                 <div style={{ fontSize: '12px', color: '#f43f5e', fontWeight: '600', marginTop: '4px' }}>
@@ -61,14 +63,14 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
 
           <div className="perf-pillar-grid">
             <div className="perf-pillar-card">
-              <h3 className="perf-pillar-name">🎯 Quality (45%)</h3>
+              <h3 className="perf-pillar-name">🎯 Quality (40%)</h3>
               <div className="perf-pillar-math">
                 {performance ? (
                   <>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(qualityFactor)}%</span> × 45% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{qualityPts} pts</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(qualityFactor)}%</span> × 40% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{qualityPts} pts</span>
                   </>
                 ) : (
-                  '(Base Quality Score × Rejection Penalty) × 45%'
+                  '(Base Quality Score × Rejection Penalty) × 40%'
                 )}
               </div>
               <p className="perf-pillar-text" style={{ fontSize: '12.5px', lineHeight: '1.6' }}>
@@ -81,14 +83,14 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
             </div>
 
             <div className="perf-pillar-card">
-              <h3 className="perf-pillar-name">⚡ Speed (35%)</h3>
+              <h3 className="perf-pillar-name">⚡ Speed (30%)</h3>
               <div className="perf-pillar-math">
                 {performance ? (
                   <>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(Math.min(150, efficiencyRatio * 100))}%</span> × 35% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{speedPts} pts</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(Math.min(150, efficiencyRatio * 100))}%</span> × 30% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{speedPts} pts</span>
                   </>
                 ) : (
-                  '(Submission Speed Factor − Overdue Penalty) × 35%'
+                  '(Submission Speed Factor − Overdue Penalty) × 30%'
                 )}
               </div>
               <p className="perf-pillar-text">
@@ -99,14 +101,14 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
             </div>
 
             <div className="perf-pillar-card">
-              <h3 className="perf-pillar-name">📅 Reliability (20%)</h3>
+              <h3 className="perf-pillar-name">📅 Reliability (15%)</h3>
               <div className="perf-pillar-math">
                 {performance ? (
                   <>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(onTimeRate)}%</span> × 20% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{reliabilityPts} pts</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(onTimeRate)}%</span> × 15% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{reliabilityPts} pts</span>
                   </>
                 ) : (
-                  '(On-Time Files / (Total Files + Overdue)) × 20%'
+                  '(On-Time Files / (Total Files + Overdue)) × 15%'
                 )}
               </div>
               <p className="perf-pillar-text">
@@ -114,10 +116,27 @@ const PerformanceInfoModal = React.memo(({ isOpen, onClose, performance }) => {
                 <strong> Each overdue task also counts as a missed deadline</strong>, directly reducing your Reliability rate alongside your on-time submissions.
               </p>
             </div>
+
+            <div className="perf-pillar-card">
+              <h3 className="perf-pillar-name">💼 Contribution (15%)</h3>
+              <div className="perf-pillar-math">
+                {performance ? (
+                  <>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{Math.round(Math.min(150, contributionScore * 100))}%</span> × 15% = <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{contributionPts} pts</span>
+                  </>
+                ) : (
+                  '(Files Submitted / Fair Share Quota) × 15%'
+                )}
+              </div>
+              <p className="perf-pillar-text">
+                When a Team Leader sets a <strong>Files Limit</strong> for a shared task (e.g., 8 files among 4 users), your "fair share" is 2 files.
+                <strong> Submitting more than your fair share</strong> (e.g., 4 files) significantly boosts your Contribution score!
+              </p>
+            </div>
           </div>
 
           <div className="perf-modal-formula-box">
-            <div className="perf-formula-main">Performance = Quality + Speed + Reliability</div>
+            <div className="perf-formula-main">Performance = Quality + Speed + Reliability + Contribution</div>
           </div>
 
           {/* Penalty Summary */}

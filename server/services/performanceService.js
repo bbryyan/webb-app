@@ -14,14 +14,28 @@ async function calculateAllUserPerformance(teamId = null) {
   }
 
   const results = await queryBatch([
-    // 1. Global Task Metrics (Weighted by File Count)
+    // 1. Global Task Metrics (Weighted by File Count & Contribution)
     [`SELECT 
         u.id as user_id,
         SUM(CASE WHEN am.status = 'submitted' THEN COALESCE(fc.file_count, 1) ELSE 0 END) as submitted_files,
-        SUM(COALESCE(fc.file_count, 1)) as total_files
+        SUM(COALESCE(fc.file_count, 1)) as total_files,
+        
+        -- Contribution Data (Share of Workload)
+        SUM(CASE 
+            WHEN am.status = 'submitted' THEN COALESCE(fc.file_count, 1)
+            ELSE 0 
+        END) as total_contribution_submitted,
+        
+        SUM(CASE 
+            WHEN a.required_file_count > 0 THEN (a.required_file_count / GREATEST(1, ac.assignee_count))
+            WHEN am.status = 'submitted' THEN COALESCE(fc.file_count, 1)
+            ELSE 0
+        END) as total_fair_share_expected
+        
       FROM users u
       LEFT JOIN assignment_members am ON u.id = am.user_id
       LEFT JOIN assignments a ON a.id = am.assignment_id
+      LEFT JOIN (SELECT assignment_id, COUNT(*) as assignee_count FROM assignment_members GROUP BY assignment_id) ac ON a.id = ac.assignment_id
       LEFT JOIN (SELECT assignment_id, user_id, COUNT(*) as file_count FROM files WHERE assignment_id IS NOT NULL GROUP BY assignment_id, user_id) fc 
         ON a.id = fc.assignment_id AND u.id = fc.user_id
       WHERE ${userFilter}
@@ -161,6 +175,12 @@ async function calculateAllUserPerformance(teamId = null) {
 
     const totalFilesVolume = stat.total_files || 0;
     const submittedFilesVolume = stat.submitted_files || 0;
+    
+    // Contribution Score (Fair Share vs Actual)
+    const totalContribution = stat.total_contribution_submitted || 0;
+    const totalFairShare = stat.total_fair_share_expected || 0;
+    const contributionScoreRaw = totalFairShare > 0 ? (totalContribution / totalFairShare) : 1;
+    const contributionScore = Math.min(1.5, contributionScoreRaw); // Capped at 150%
 
     // Reliability (File-Weighted)
     const totalFilesWithDeadline = rStat.total_files_with_deadline || 0;
@@ -260,10 +280,10 @@ async function calculateAllUserPerformance(teamId = null) {
     const cappedEarlyBonus = Math.min(0.05, earlyCompletionBonus);
     const totalBonusFactor = cappedEarlyBonus + flawlessSubmitterBonus + flawlessCheckerBonus;
 
-    // Final WPI (Raw)
+    // Final WPI (Raw) with new 40/30/15/15 weights
     const hasActivity = submittedFilesVolume > 0 || processedFiles > 0;
     let rawOverallScore = (totalFilesVolume > 0 && hasActivity) ? Math.max(0, Math.round(
-      (qualityScore * 45) + (speedScore * 35) + (reliabilityScore * 20) + (totalBonusFactor * 100)
+      (qualityScore * 40) + (speedScore * 30) + (reliabilityScore * 15) + (contributionScore * 15) + (totalBonusFactor * 100)
     )) : 0;
     
     // Cap at 110 to show true over-performers, but prevent ridiculous scores
@@ -299,6 +319,7 @@ async function calculateAllUserPerformance(teamId = null) {
       checkingQualityFactor,
       efficiencyRatio: Math.round(avgSpeedFactor * 100) / 100,
       qualityFactor: finalQualityDisplay,
+      contributionScore: Math.round(contributionScore * 100) / 100,
       management: {
         avgReviewHours: Math.round((mStat.avg_review_hours || 0) * 10) / 10,
         totalReviewed: mStat.total_reviewed || 0,

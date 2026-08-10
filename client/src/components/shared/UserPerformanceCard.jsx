@@ -378,6 +378,23 @@ const UserPerformanceCard = memo(({ user, performanceData, fallbackStats, isColl
                     <div className="perf-metric-footer">On-Time Delivery</div>
                   </div>
 
+                  {/* Contribution (Workload Share) */}
+                  <div className="perf-metric-item">
+                    <div className="perf-metric-top">
+                      <span className="perf-metric-label">Contribution</span>
+                      <div className="perf-metric-value">
+                        {formatHyperMetric(Math.round((performance?.contributionScore || 0) * 100), '#8b5cf6')}
+                      </div>
+                    </div>
+                    <div className="perf-mini-pill-container">
+                      <div
+                        className="perf-mini-pill-fill"
+                        style={{ width: `${Math.min(100, (performance?.contributionScore || 0) * 100)}%`, background: '#8b5cf6' }}
+                      ></div>
+                    </div>
+                    <div className="perf-metric-footer">Share of Team Workload</div>
+                  </div>
+
                   {/* Overdue */}
                   <div className="perf-metric-item">
                     <div className="perf-metric-top">
@@ -464,8 +481,9 @@ const UserPerformanceCard = memo(({ user, performanceData, fallbackStats, isColl
                   performance?.qualityFactor < 70 ? "Focus on double-checking files before submission to reduce rejections." :
                     performance?.efficiencyRatio < 0.8 ? "User is consistently exceeding deadlines. Review task complexity or time management." :
                       onTimeRate < 70 ? "Reliability is dipping. Ensure tasks are submitted before the deadline to avoid project lag." :
-                        overallScore > 85 ? "Excellent performance! User is a top contributor and ready for higher-complexity tasks." :
-                          "Maintain consistent output quality and speed to improve the overall performance index."
+                        (performance?.contributionScore || 1) < 0.8 ? "Contribution is low. Submitting more files on shared tasks will boost this score." :
+                          overallScore > 85 ? "Excellent performance! User is a top contributor and ready for higher-complexity tasks." :
+                            "Maintain consistent output quality and speed to improve the overall performance index."
                 )}
               </p>
             </div>
