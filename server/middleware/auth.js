@@ -8,7 +8,9 @@ const { secret } = require('../config/jwt');
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   // Fallback to query parameter for EventSource (SSE) which doesn't support headers
-  const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
+  const rawToken = (authHeader && authHeader.split(' ')[1]) || req.query.token;
+  // Reject the literal string "undefined" — happens when client passes token before store hydrates
+  const token = (rawToken && rawToken !== 'undefined') ? rawToken : null;
 
   if (!token) {
     console.error(`❌ [auth.js] No token provided for ${req.method} ${req.originalUrl}. authHeader: "${authHeader}", query token: "${req.query.token}"`);

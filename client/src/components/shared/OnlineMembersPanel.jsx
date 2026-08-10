@@ -46,7 +46,8 @@ const OnlineMembersPanel = ({ user, teamFilter }) => {
 
   // ── Fetch all members from DB with current online status ──────────────────────
   const fetchMembers = useCallback(async () => {
-    if (!user?.id) return
+    const { token } = useStore.getState()
+    if (!user?.id || !token) return  // don't fire before auth is ready
     try {
       const data = await apiFetch(`/api/presence/members`)
       if (data.success) {
@@ -61,7 +62,8 @@ const OnlineMembersPanel = ({ user, teamFilter }) => {
 
   // ── Heartbeat ping ────────────────────────────────────────────────────────
   const ping = useCallback(async () => {
-    if (!user?.id) return
+    const { token } = useStore.getState()
+    if (!user?.id || !token) return  // don't fire before auth is ready
     try {
       await apiFetch('/api/presence/ping', {
         method: 'POST',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API_BASE_URL } from '@/config/api'
 import '../css/Login.css'
 import Logo from '../assets/kmti_logo.png'
@@ -124,24 +124,13 @@ const Login = ({ onLogin }) => {
     setForgotPasswordEmail('')
     setForgotPasswordMessage('')
   }
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }))
-    }
-
-    if (apiError) {
-      setApiError('')
-    }
-  }
+    // Batch all state updates in one go to avoid multiple re-renders per keystroke
+    setFormData(prev => ({ ...prev, [name]: value }))
+    setErrors(prev => prev[name] ? { ...prev, [name]: '' } : prev)
+    setApiError(prev => prev ? '' : prev)
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
