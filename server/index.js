@@ -74,6 +74,7 @@ const { router: notificationsRoutes } = require('./routes/notifications');
 const assignmentsRoutes = require('./routes/assignments');
 const customTagsRoutes = require('./routes/customTags');
 const presenceRoutes = require('./routes/presence');
+const messagesRoutes = require('./routes/messages');
 
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
@@ -160,6 +161,7 @@ app.use('/api/notifications', dbReadyGuard, notificationsRoutes);
 app.use('/api/assignments', dbReadyGuard, assignmentsRoutes);
 app.use('/api/custom-tags', dbReadyGuard, customTagsRoutes);
 app.use('/api/presence', dbReadyGuard, presenceRoutes);
+app.use('/api/messages', dbReadyGuard, messagesRoutes);
 
 // Serve global assets from NAS (or local-test data path)
 app.use('/api/assets', express.static(path.join(networkDataPath, 'assets')));

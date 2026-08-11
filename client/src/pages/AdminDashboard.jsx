@@ -292,6 +292,8 @@ const AdminDashboard = ({ user, onLogout }) => {
               
               // Also fetch notifications to update the broadcast reply badge
               fetchNotifications();
+            } else if (data.type === 'direct_message' || data.type === 'direct_message_reaction') {
+              window.dispatchEvent(new CustomEvent('dm:incoming', { detail: data }))
             }
           } catch(e) {
             console.error('SSE Parse Error:', e);

@@ -245,7 +245,26 @@ async function main() {
       log(`⚠️  Port ${VITE_PORT} is in use. Vite may fail to start.`, colors.yellow, '');
     }
     if (expressInUse) {
-      log(`⚠️  Port ${EXPRESS_PORT} is in use. Express may use alternate port.`, colors.yellow, '');
+      log(`⚠️  Port ${EXPRESS_PORT} is in use — killing old process...`, colors.yellow, '');
+      try {
+        // Find and kill the process holding port 3001 so the new server can bind
+        const { execSync } = require('child_process');
+        if (process.platform === 'win32') {
+          const result = execSync(`netstat -ano | findstr ":${EXPRESS_PORT}" | findstr "LISTENING"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+          if (result) {
+            const oldPid = result.trim().split(/\s+/).pop();
+            if (oldPid && !isNaN(oldPid)) {
+              execSync(`taskkill /PID ${oldPid} /F`, { stdio: 'ignore' });
+              log(`✅ Killed old process (PID ${oldPid}) on port ${EXPRESS_PORT}`, colors.green, '');
+              await new Promise(r => setTimeout(r, 500)); // give OS time to release port
+            }
+          }
+        } else {
+          execSync(`fuser -k ${EXPRESS_PORT}/tcp`, { stdio: 'ignore' });
+        }
+      } catch (e) {
+        log(`Could not auto-kill port ${EXPRESS_PORT}: ${e.message}`, colors.yellow, '⚠️');
+      }
     }
 
     // Step 2: Start Vite and Electron IN PARALLEL (fastest approach)

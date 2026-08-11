@@ -117,6 +117,9 @@ const UserDashboard = ({ user, onLogout }) => {
                   senderName: data.senderName
                 }];
               });
+            } else if (data.type === 'direct_message' || data.type === 'direct_message_reaction') {
+              // Forward to DirectMessageChat via window event
+              window.dispatchEvent(new CustomEvent('dm:incoming', { detail: data }))
             }
           } catch (e) { }
         }

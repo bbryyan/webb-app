@@ -278,6 +278,8 @@ const TeamLeaderDashboard = ({ user, onLogout }) => {
                   senderName: data.senderName
                 }];
               });
+            } else if (data.type === 'direct_message' || data.type === 'direct_message_reaction') {
+              window.dispatchEvent(new CustomEvent('dm:incoming', { detail: data }))
             }
           } catch (e) { }
         }

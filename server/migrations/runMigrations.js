@@ -46,6 +46,8 @@ async function runMigrations() {
       { name: '026-add-complexity-and-checked-at',           run: require('./026-add-complexity-and-checked-at') },
       { name: '027-add-panel-type-to-notifications',         run: require('./027-add-panel-type-to-notifications') },
       { name: '028-add-notifications-type-index',            run: require('./028-add-notifications-type-index') },
+      { name: '029-add-direct-messages',                     run: require('./029-add-direct-messages') },
+      { name: '030-add-dm-reactions',                        run: require('./030-add-dm-reactions') },
     ];
 
     // Fetch all already-applied migrations in one query
