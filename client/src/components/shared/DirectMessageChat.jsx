@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { apiFetch } from '@/config/api'
+import { apiFetch, API_BASE_URL } from '@/config/api'
 import Avatar from './Avatar'
 import './DirectMessageChat.css'
 
@@ -68,8 +68,19 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
   const [loading, setLoading] = useState(true)
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
+  const [attachment, setAttachment] = useState(null)
+  const [attachmentMenuOpenId, setAttachmentMenuOpenId] = useState(null)
+  const [hoveredAttachmentId, setHoveredAttachmentId] = useState(null)
+  
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
+
+  const ATTACH_ICON = (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+      <path fillRule="evenodd" d="M11.47 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 01-1.06 1.06l-3.22-3.22V16.5a.75.75 0 01-1.5 0V4.81L8.03 8.03a.75.75 0 01-1.06-1.06l4.5-4.5zM3 15.75a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+    </svg>
+  )
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -134,10 +145,12 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
   // ── Send a message ────────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = inputValue.trim()
-    if (!text || sending) return
+    if ((!text && !attachment) || sending) return
 
     setSending(true)
     setInputValue('')
+    const currentAttachment = attachment
+    setAttachment(null)
 
     // Optimistic UI — add message immediately
     const optimistic = {
@@ -145,6 +158,9 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
       sender_id: currentUser.id,
       receiver_id: targetUser.userId,
       message: text,
+      attachment_url: currentAttachment ? URL.createObjectURL(currentAttachment) : null,
+      attachment_name: currentAttachment?.name || null,
+      attachment_type: currentAttachment?.type || null,
       is_read: 0,
       created_at: new Date().toISOString(),
       sender_name: currentUser.fullName || currentUser.username,
@@ -155,9 +171,35 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
     setMessages(prev => [...prev, optimistic])
 
     try {
+      let attachmentData = {}
+      
+      // Upload attachment first if present
+      if (currentAttachment) {
+        const formData = new FormData()
+        formData.append('file', currentAttachment)
+        const uploadRes = await apiFetch('/api/messages/upload', {
+          method: 'POST',
+          body: formData
+        }, true) // true = skip JSON stringify
+        
+        if (uploadRes.success) {
+          attachmentData = {
+            attachmentUrl: uploadRes.attachment.url,
+            attachmentName: uploadRes.attachment.name,
+            attachmentType: uploadRes.attachment.type
+          }
+        } else {
+          throw new Error('File upload failed')
+        }
+      }
+
       const data = await apiFetch('/api/messages/send', {
         method: 'POST',
-        body: JSON.stringify({ receiverId: targetUser.userId, message: encodeEmojis(text) })
+        body: JSON.stringify({ 
+          receiverId: targetUser.userId, 
+          message: encodeEmojis(text),
+          ...attachmentData
+        })
       })
       if (data.success) {
         // Replace optimistic with real message from server
@@ -167,11 +209,75 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
       // Remove optimistic on failure
       setMessages(prev => prev.filter(m => m.id !== optimistic.id))
       setInputValue(text) // restore text
+      if (currentAttachment) setAttachment(currentAttachment) // restore attachment
     } finally {
       setSending(false)
       inputRef.current?.focus()
     }
-  }, [inputValue, sending, currentUser, targetUser.userId])
+  }, [inputValue, attachment, sending, currentUser, targetUser.userId])
+
+  // ── Attachments & Pasting ──────────────────────────────────────────────
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachment(e.target.files[0])
+    }
+    e.target.value = null // reset
+  }
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items
+    if (items) {
+      for (const item of items) {
+        if (item.type.indexOf('image') === 0) {
+          const file = item.getAsFile()
+          if (file) {
+            setAttachment(file)
+            e.preventDefault() // prevent pasting image blob string into textarea
+            break
+          }
+        }
+      }
+    }
+  }
+
+  const handleDownload = (url, name, e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const fullUrl = `${API_BASE_URL}/api/file-viewer/view/${url}`
+    
+    // In Electron, downloading via anchor might not behave correctly without triggering the download manager,
+    // but fetching the blob is reliable and works everywhere
+    fetch(fullUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = name || 'download'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(blobUrl)
+      })
+      .catch(() => {
+        // Fallback
+        window.open(fullUrl, '_blank')
+      })
+      
+    setAttachmentMenuOpenId(null)
+  }
+
+  const handleOpenFile = (url, e) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    const fullUrl = `${API_BASE_URL}/api/file-viewer/view/${url}`
+    if (window.electron && window.electron.openExternal) {
+      window.electron.openExternal(fullUrl)
+    } else {
+      window.open(fullUrl, '_blank')
+    }
+    setAttachmentMenuOpenId(null)
+  }
 
   // ── Keyboard: Enter to send, Shift+Enter for newline ─────────────────
   const handleKeyDown = (e) => {
@@ -257,19 +363,52 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
           )}
           <div className="dm-msg-content">
             <div className="dm-bubble-wrapper">
-              <div className="dm-bubble">
+              <div className={`dm-bubble ${msg.attachment_url && !msg.message ? 'dm-bubble-file-only' : ''}`}>
+                {msg.attachment_url && (
+                  <div className="dm-attachment">
+                    {msg.attachment_type?.startsWith('image/') ? (
+                      <div style={{ position: 'relative' }}>
+                        <img src={msg.attachment_url.startsWith('blob:') ? msg.attachment_url : `${API_BASE_URL}/api/file-viewer/view/${msg.attachment_url}`} alt="Attachment" className="dm-attachment-img" onClick={() => handleOpenFile(msg.attachment_url)} />
+                      </div>
+                    ) : (
+                      <div 
+                        className="dm-attachment-file-wrapper" 
+                        onMouseEnter={() => setHoveredAttachmentId(msg.id)}
+                        onMouseLeave={() => setHoveredAttachmentId(null)}
+                      >
+                        <a href="#!" onClick={(e) => handleOpenFile(msg.attachment_url, e)} className="dm-attachment-file">
+                          📄 {msg.attachment_name || 'File attached'}
+                        </a>
+                        <button 
+                          className="dm-attachment-more-btn" 
+                          onClick={(e) => { e.stopPropagation(); setAttachmentMenuOpenId(attachmentMenuOpenId === msg.id ? null : msg.id) }}
+                        >
+                          ⋮
+                        </button>
+                        {attachmentMenuOpenId === msg.id && (
+                          <div className="dm-attachment-menu">
+                            <button onClick={(e) => handleOpenFile(msg.attachment_url, e)}>Open file</button>
+                            <button onClick={(e) => handleDownload(msg.attachment_url, msg.attachment_name, e)}>Download</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {decodeEmojis(msg.message)}
-                {msg.reaction && (
+                {!msg.attachment_url && msg.reaction && (
                   <div className="dm-reaction-badge" onClick={() => handleReact(msg.id, null)}>
                     {decodeEmojis(msg.reaction)}
                   </div>
                 )}
               </div>
-              <div className="dm-reaction-menu">
-                {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-                  <button key={emoji} onClick={() => handleReact(msg.id, emoji)}>{emoji}</button>
-                ))}
-              </div>
+              {!msg.attachment_url && attachmentMenuOpenId !== msg.id && hoveredAttachmentId !== msg.id && (
+                <div className="dm-reaction-menu">
+                  {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
+                    <button key={emoji} onClick={() => handleReact(msg.id, emoji)}>{emoji}</button>
+                  ))}
+                </div>
+              )}
             </div>
             {isLastInGroup && <div className="dm-msg-time">{formatTime(msg.created_at)}</div>}
           </div>
@@ -321,27 +460,51 @@ const DirectMessageChat = ({ currentUser, targetUser, onClose, onNewMessage }) =
         </div>
 
         {/* Input */}
-        <div className="dm-input-area">
-          <textarea
-            ref={inputRef}
-            className="dm-input"
-            placeholder={`Message ${targetUser.fullName?.split(' ')[0] || targetUser.username}…`}
-            value={inputValue}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            maxLength={2000}
-            disabled={sending}
-          />
-          <button
-            className="dm-send-btn"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || sending}
-            title="Send message"
-            aria-label="Send message"
-          >
-            {SEND_ICON}
-          </button>
+        <div className="dm-input-container">
+          {attachment && (
+            <div className="dm-attachment-preview">
+              <div className="dm-attachment-preview-content">
+                {attachment.type.startsWith('image/') ? (
+                  <img src={URL.createObjectURL(attachment)} alt="Preview" />
+                ) : (
+                  <span>📄 {attachment.name}</span>
+                )}
+                <button onClick={() => setAttachment(null)} className="dm-attachment-remove">✕</button>
+              </div>
+            </div>
+          )}
+          <div className="dm-input-area">
+            <button className="dm-attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach file or Paste (Ctrl+V)">
+              {ATTACH_ICON}
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileSelect} 
+            />
+            <textarea
+              ref={inputRef}
+              className="dm-input"
+              placeholder={`Message ${targetUser.fullName?.split(' ')[0] || targetUser.username}…`}
+              value={inputValue}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              rows={1}
+              maxLength={2000}
+              disabled={sending}
+            />
+            <button
+              className="dm-send-btn"
+              onClick={handleSend}
+              disabled={(!inputValue.trim() && !attachment) || sending}
+              title="Send message"
+              aria-label="Send message"
+            >
+              {SEND_ICON}
+            </button>
+          </div>
         </div>
       </div>
     </div>,

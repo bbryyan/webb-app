@@ -22,6 +22,7 @@ const { errorHandler, notFoundHandler, handleUnhandledRejection, handleUncaughtE
 const { logRequest, logInfo, logError } = require('./utils/logger');
 const { apiLimiter, authLimiter, uploadLimiter } = require('./config/rateLimiter');
 const { scheduleWeeklyJob } = require('./utils/snapshotScheduler');
+const { scheduleDMCleanupJob } = require('./utils/dmCleanupScheduler');
 
 // Hide console window on Windows when running as executable - MUST BE FIRST
 if (process.platform === 'win32' && process.pkg) {

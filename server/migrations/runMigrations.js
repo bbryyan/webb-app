@@ -48,6 +48,7 @@ async function runMigrations() {
       { name: '028-add-notifications-type-index',            run: require('./028-add-notifications-type-index') },
       { name: '029-add-direct-messages',                     run: require('./029-add-direct-messages') },
       { name: '030-add-dm-reactions',                        run: require('./030-add-dm-reactions') },
+      { name: '031-add-dm-attachments',                      run: require('./031-add-dm-attachments') },
     ];
 
     // Fetch all already-applied migrations in one query

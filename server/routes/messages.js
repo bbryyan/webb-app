@@ -4,6 +4,15 @@ const { authenticateToken } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { query } = require('../config/database');
 const { pushToUser } = require('./notifications');
+const { upload, uploadsDir } = require('../config/middleware');
+const fs = require('fs');
+const path = require('path');
+
+// Ensure DM uploads directory exists
+const dmUploadsDir = path.join(uploadsDir, 'dm');
+if (!fs.existsSync(dmUploadsDir)) {
+  fs.mkdirSync(dmUploadsDir, { recursive: true });
+}
 
 // All routes require auth
 router.use(authenticateToken);
@@ -21,6 +30,7 @@ router.get('/conversation/:otherUserId', asyncHandler(async (req, res) => {
   const messages = await query(
     `SELECT
        dm.id, dm.sender_id, dm.receiver_id, dm.message, dm.is_read, dm.created_at, dm.reaction,
+       dm.attachment_url, dm.attachment_name, dm.attachment_type,
        u.fullName AS sender_name, u.username AS sender_username, u.profile_picture AS sender_avatar
      FROM direct_messages dm
      JOIN users u ON u.id = dm.sender_id
@@ -34,25 +44,51 @@ router.get('/conversation/:otherUserId', asyncHandler(async (req, res) => {
   res.json({ success: true, messages });
 }));
 
+// ── POST /api/messages/upload ──────────────────────────────────────────────────
+// Upload an attachment for a direct message
+router.post('/upload', upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+
+  const timestamp = Date.now();
+  const safeOriginalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const filename = `${timestamp}_${safeOriginalName}`;
+  const targetPath = path.join(dmUploadsDir, filename);
+
+  // Move file from temp to final destination
+  fs.copyFileSync(req.file.path, targetPath);
+  fs.unlinkSync(req.file.path);
+
+  res.json({
+    success: true,
+    attachment: {
+      url: `dm/${filename}`,
+      name: req.file.originalname,
+      type: req.file.mimetype
+    }
+  });
+}));
+
 // ── POST /api/messages/send ────────────────────────────────────────────────────
 // Send a direct message to another user
 router.post('/send', asyncHandler(async (req, res) => {
   const senderId = req.user.id;
-  const { receiverId, message } = req.body;
+  const { receiverId, message, attachmentUrl, attachmentName, attachmentType } = req.body;
 
-  if (!receiverId || !message || !message.trim()) {
-    return res.status(400).json({ success: false, message: 'receiverId and message are required' });
+  if (!receiverId || (!message && !attachmentUrl)) {
+    return res.status(400).json({ success: false, message: 'receiverId and (message or attachment) are required' });
   }
 
   if (parseInt(receiverId, 10) === senderId) {
     return res.status(400).json({ success: false, message: 'Cannot message yourself' });
   }
 
-  const trimmed = message.trim().slice(0, 2000); // max 2000 chars
+  const trimmed = message ? message.trim().slice(0, 2000) : '';
 
   const result = await query(
-    'INSERT INTO direct_messages (sender_id, receiver_id, message) VALUES (?, ?, ?)',
-    [senderId, receiverId, trimmed]
+    'INSERT INTO direct_messages (sender_id, receiver_id, message, attachment_url, attachment_name, attachment_type) VALUES (?, ?, ?, ?, ?, ?)',
+    [senderId, receiverId, trimmed, attachmentUrl || null, attachmentName || null, attachmentType || null]
   );
 
   const messageId = result.insertId;
@@ -60,6 +96,7 @@ router.post('/send', asyncHandler(async (req, res) => {
   // Fetch full message with sender info for the real-time payload
   const [newMsg] = await query(
     `SELECT dm.id, dm.sender_id, dm.receiver_id, dm.message, dm.is_read, dm.created_at, dm.reaction,
+            dm.attachment_url, dm.attachment_name, dm.attachment_type,
             u.fullName AS sender_name, u.username AS sender_username, u.profile_picture AS sender_avatar
      FROM direct_messages dm
      JOIN users u ON u.id = dm.sender_id
