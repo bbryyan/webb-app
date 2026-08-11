@@ -345,7 +345,8 @@ async function initDbWithRetry(attempt = 1) {
       const watchPaths = [
         uploadsDir,                                          // pending uploads
         require('path').join(networkDataPath, 'user_approvals'), // approved files
-        require('path').join(networkDataPath, 'PROJECTS')       // moved-to-projects files
+        require('path').join(networkDataPath, 'PROJECTS'),       // moved-to-projects files
+        require('path').join(networkDataPath, 'teamleader')      // team leader references
       ].filter(Boolean);
       startWatcher(watchPaths);
     } catch (watchErr) {

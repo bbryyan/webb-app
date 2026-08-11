@@ -4,8 +4,10 @@
  * it is automatically removed from the database.
  */
 
+const fs = require('fs');
 const path = require('path');
 const { query } = require('../config/database');
+const { pushToUser } = require('../routes/notifications');
 
 let watcher = null;
 let isStarted = false;
@@ -39,7 +41,7 @@ function norm(p) {
  */
 function relPart(p) {
   const n = norm(p);
-  for (const seg of ['uploads/', 'user_approvals/', 'projects/']) {
+  for (const seg of ['uploads/', 'user_approvals/', 'projects/', 'teamleader/']) {
     const idx = n.indexOf(seg);
     if (idx !== -1) {
       return n.slice(idx + seg.length);
@@ -172,7 +174,105 @@ async function handleFileDeletion(deletedPath) {
     }
 
   } catch (err) {
-    console.error(`  ❌ [Watcher] DB error for ${deletedPath}:`, err.message);
+    console.error(`  ❌ [Watcher] Error for ${deletedPath}:`, err.message);
+  }
+}
+
+/**
+ * Called when chokidar fires 'add' (a file is added to a watched directory).
+ */
+async function handleFileAddition(addedPath) {
+  const fileName = path.basename(addedPath);
+  const relAdded = relPart(addedPath);
+
+  // Ignore temp files or hidden files
+  if (fileName.startsWith('~') || /\.tmp$/i.test(fileName) || /^~/.test(fileName) || fileName.startsWith('.')) {
+    return;
+  }
+
+  try {
+    // 1. We only care about team leader assignment references for now
+    // The absolute path must contain '/teamleader/'
+    const normalizedAbs = norm(addedPath);
+    if (!normalizedAbs.includes('/teamleader/')) {
+      return;
+    }
+
+    // We need original casing for paths. Let's parse from addedPath.
+    // addedPath is e.g. \\NAS\...\teamleader\username\FOLDER\filename.ext
+    const normalizedAbsForSearch = addedPath.replace(/\\/g, '/');
+    const tlIndex = normalizedAbsForSearch.toLowerCase().indexOf('/teamleader/');
+    if (tlIndex === -1) return;
+    
+    // Extract everything after '/teamleader/' -> 'username/FOLDER/filename.ext'
+    const afterTL = normalizedAbsForSearch.slice(tlIndex + '/teamleader/'.length);
+    const origParts = afterTL.split('/');
+    
+    if (origParts.length < 3) {
+      // Must be at least username/foldername/filename
+      return;
+    }
+
+    const teamLeaderUsername = origParts[0];
+    const originalFolderName = origParts[1];
+    const folderName = originalFolderName.toLowerCase(); // For DB query if needed, but we use actual_folder_name anyway
+
+    // Find the assignment_id that uses this folder name
+    const existing = await query(
+      `SELECT assignment_id, uploaded_by_id, folder_name AS actual_folder_name FROM assignment_attachments WHERE folder_name = ? LIMIT 1`,
+      [folderName]
+    ).catch(() => []);
+
+    if (existing && existing.length > 0) {
+      const { assignment_id, uploaded_by_id, actual_folder_name } = existing[0];
+
+      // Check if file already exists in DB
+      const existingFile = await query(
+        `SELECT id FROM assignment_attachments WHERE assignment_id = ? AND original_name = ? AND folder_name = ?`,
+        [assignment_id, fileName, actual_folder_name]
+      );
+
+      if (existingFile && existingFile.length === 0) {
+        logEvent(`👀 New physical file detected: ${fileName} in folder ${folderName}. Auto-syncing to DB...`);
+        
+        let stats = null;
+        try {
+          stats = fs.statSync(addedPath);
+        } catch (e) {
+          return; // could not read file
+        }
+
+        const ext = path.extname(fileName).toLowerCase().replace('.', '');
+        let fileType = 'application/octet-stream';
+        if (['jpg','jpeg','png','gif'].includes(ext)) fileType = 'image/' + ext;
+        else if (ext === 'pdf') fileType = 'application/pdf';
+
+        // The relative path in the UI starts with the folder name, e.g. "TESTING!/filename.ext"
+        // origParts is [username, FOLDER, ...], so we slice from 1
+        const relPathParts = origParts.slice(1);
+        relPathParts[0] = actual_folder_name; // Use the exact DB casing for the root folder
+        const sanitizedRelPath = relPathParts.map(seg => seg.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')).join('/');
+
+        // Insert into DB
+        await query(
+          `INSERT INTO assignment_attachments (
+            assignment_id, original_name, filename, file_path, file_size, file_type, 
+            uploaded_by_id, uploaded_by_username, folder_name, relative_path
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            assignment_id, fileName, fileName, addedPath, stats.size, fileType,
+            uploaded_by_id, teamLeaderUsername, actual_folder_name, sanitizedRelPath
+          ]
+        );
+
+        logEvent(`✅ Successfully auto-synced ${fileName} to assignment ${assignment_id}`);
+        
+        // Notify team leader to refresh UI
+        pushToUser(uploaded_by_id, { type: 'ping' });
+      }
+    }
+  } catch (err) {
+    console.error(`  ❌ [Watcher] DB add error for ${addedPath}:`, err.message);
   }
 }
 
@@ -270,10 +370,10 @@ function startWatcher(watchPaths) {
 
   watcher = chokidar.watch(validPaths, {
     persistent: true,
-    ignoreInitial: true,
-    usePolling: false,
-    interval: 10000,
-    binaryInterval: 15000,
+    ignoreInitial: false,
+    usePolling: true,
+    interval: 5000,
+    binaryInterval: 10000,
     awaitWriteFinish: {
       stabilityThreshold: 3000,
       pollInterval: 1000
@@ -286,6 +386,7 @@ function startWatcher(watchPaths) {
   });
 
   watcher
+    .on('add',       handleFileAddition)
     .on('unlink',    handleFileDeletion)
     .on('unlinkDir', handleDirectoryDeletion)
     .on('error', (err) => {
